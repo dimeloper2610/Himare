@@ -543,9 +543,8 @@
     });
   });
 
-  // on mobile, links to a property (dock, hero button) switch instead of jumping
+  // links to a property (nav, dock, hero button) switch instead of jumping
   document.addEventListener("click", function (e) {
-    if (!isMobile()) return;
     var a = e.target.closest('a[href="#casa-bella"], a[href="#mikri-himara"], a[href="#choose"]');
     if (!a) return;
     e.preventDefault();
@@ -579,7 +578,7 @@
     });
   });
 
-  // deep link: /#mikri-himara opens the second place on mobile
+  // deep link: /#mikri-himara opens the second place
   if (location.hash === "#mikri-himara") setProp("mikri", { hash: false });
   window.addEventListener("hashchange", function () {
     if (location.hash === "#mikri-himara") setProp("mikri", { animate: true, hash: false });

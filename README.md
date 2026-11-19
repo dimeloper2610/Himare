@@ -21,7 +21,7 @@ Settings → Pages → Source: *Deploy from a branch* → `main` / `/ (root)`.
 
 ## Δομή
 
-- `index.html`: η σελίδα (ελληνικό κείμενο)
+- `index.html`: η σελίδα (ελληνικό κείμενο). Ένα κατάλυμα τη φορά (διακόπτης Casa Bella / Μικρή Χιμάρα, tabs Επισκόπηση / Παροχές / Κριτικές). Link για το δεύτερο: `/#mikri-himara`
 - `assets/js/main.js`: gallery/lightbox και αγγλικές μεταφράσεις
 - `assets/css/style.css`: εμφάνιση
 - `assets/img/<κατάλυμα>/`: φωτογραφίες (1280px), `thumb/`: μικρογραφίες (640px)
