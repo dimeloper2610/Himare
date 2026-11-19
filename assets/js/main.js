@@ -109,9 +109,76 @@
       });
     });
     $(".car-all", ui).addEventListener("click", function () { openSheet(key); });
+
+    /* ---- large-screen gallery: contained stage + thumbnail strip ---- */
+    var dg = document.createElement("div");
+    dg.className = "dgal";
+    var slidesHtml = g.featured.map(function (n, i) {
+      return '<figure class="dg-slide' + (i === 0 ? " active" : "") + '">' +
+        '<img class="bg" src="' + thumb(g, n) + '" alt="" aria-hidden="true" loading="lazy">' +
+        '<img class="fg" src="' + full(g, n) + '" alt="' + nameOf(g) + " " + (i + 1) + '" loading="' + (i < 2 ? "eager" : "lazy") + '" decoding="async">' +
+        "</figure>";
+    }).join("");
+    var thumbsHtml = g.featured.map(function (n, i) {
+      return '<button type="button" class="dg-thumb' + (i === 0 ? " active" : "") + '" data-i="' + i + '" aria-label="' + (i + 1) + '">' +
+        '<img src="' + thumb(g, n) + '" alt="" loading="lazy"></button>';
+    }).join("");
+    dg.innerHTML =
+      '<div class="dg-stage" tabindex="0">' +
+        '<div class="dg-track">' + slidesHtml + "</div>" +
+        '<button class="dg-arrow prev" type="button" aria-label="Previous"><svg class="ic"><use href="#i-chevron-left"/></svg></button>' +
+        '<button class="dg-arrow next" type="button" aria-label="Next"><svg class="ic"><use href="#i-chevron-right"/></svg></button>' +
+        '<span class="dg-count"></span>' +
+        '<button class="dg-all" type="button"><svg class="ic"><use href="#i-grid-2x2"/></svg><span class="dg-all-label"></span></button>' +
+      "</div>" +
+      '<div class="dg-thumbs">' + thumbsHtml + "</div>";
+    host.appendChild(dg);
+
+    var dTrack = $(".dg-track", dg), dSlides = $$(".dg-slide", dg), dThumbs = $$(".dg-thumb", dg);
+    var dStrip = $(".dg-thumbs", dg), dCount = $(".dg-count", dg), dIdx = 0;
+    function go(i) {
+      dIdx = (i + dSlides.length) % dSlides.length;
+      dTrack.style.transform = "translateX(" + (-dIdx * 100) + "%)";
+      dSlides.forEach(function (s, k) { s.classList.toggle("active", k === dIdx); });
+      dThumbs.forEach(function (b, k) { b.classList.toggle("active", k === dIdx); });
+      dCount.textContent = (dIdx + 1) + " / " + dSlides.length;
+      var th = dThumbs[dIdx];
+      var target = th.offsetLeft - (dStrip.clientWidth - th.offsetWidth) / 2;
+      dStrip.scrollTo({ left: target, behavior: reduceMotion ? "instant" : "smooth" });
+      // warm the next image
+      var nx = dSlides[(dIdx + 1) % dSlides.length];
+      if (nx) $$("img", nx).forEach(function (im) { im.loading = "eager"; });
+    }
+    $(".dg-arrow.prev", dg).addEventListener("click", function (e) { e.stopPropagation(); go(dIdx - 1); });
+    $(".dg-arrow.next", dg).addEventListener("click", function (e) { e.stopPropagation(); go(dIdx + 1); });
+    $(".dg-all", dg).addEventListener("click", function (e) { e.stopPropagation(); openSheet(key); });
+    dThumbs.forEach(function (b) { b.addEventListener("click", function () { go(+b.dataset.i); }); });
+    var stage = $(".dg-stage", dg);
+    stage.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { e.preventDefault(); go(dIdx - 1); }
+      if (e.key === "ArrowRight") { e.preventDefault(); go(dIdx + 1); }
+    });
+    // drag / swipe (tablets, touch laptops); a tap opens the full-screen viewer
+    var downX = null, moved = false;
+    stage.addEventListener("pointerdown", function (e) {
+      if (e.target.closest("button")) return;
+      downX = e.clientX; moved = false;
+    });
+    stage.addEventListener("pointermove", function (e) { if (downX !== null && Math.abs(e.clientX - downX) > 8) moved = true; });
+    stage.addEventListener("pointerup", function (e) {
+      if (downX === null) return;
+      var dx = e.clientX - downX;
+      downX = null;
+      if (Math.abs(dx) > 50) { go(dIdx + (dx < 0 ? 1 : -1)); return; }
+      if (!moved && !e.target.closest("button")) openViewer(key, g.all.indexOf(g.featured[dIdx]));
+    });
+    stage.addEventListener("pointercancel", function () { downX = null; });
+    go(0);
+
     host._labels = function () {
       $(".all-label", all).textContent = t("seeAll", g.all.length);
       $(".car-all-label", ui).textContent = t("photos") + " (" + g.all.length + ")";
+      $(".dg-all-label", dg).textContent = t("photos") + " (" + g.all.length + ")";
     };
     host._labels();
   });
