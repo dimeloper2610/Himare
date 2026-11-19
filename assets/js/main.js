@@ -7,6 +7,16 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var lang = "el";
 
+  // View Transitions where supported; an interrupted transition is harmless, so swallow its rejection
+  function vt(fn) {
+    if (!document.startViewTransition || reduceMotion) { fn(); return; }
+    var t = document.startViewTransition(fn);
+    var noop = function () {};
+    if (t.ready) t.ready.catch(noop);
+    if (t.finished) t.finished.catch(noop);
+    if (t.updateCallbackDone) t.updateCallbackDone.catch(noop);
+  }
+
   /* =========================================================
      Data
      ========================================================= */
@@ -268,7 +278,7 @@
     var label = function () { btn.textContent = ul.classList.contains("collapsed") ? t("amenMore", total) : t("amenLess"); };
     btn.addEventListener("click", function () {
       var run = function () { ul.classList.toggle("collapsed"); label(); };
-      if (document.startViewTransition && !reduceMotion) document.startViewTransition(run); else run();
+      vt(run);
     });
     ul.after(btn);
     ul._label = label;
@@ -459,6 +469,7 @@
     "faq.q7": "How do I book and see prices?", "faq.a7": "Bookings are made through Airbnb. Tap “Book on Airbnb” and add your dates to see prices and availability.",
 
     "final.title": "Your summer in Himarë starts here", "final.casa": "Entire home · up to 4 guests", "final.mikri": "Room · up to 2 guests",
+    "tab.overview": "Overview", "tab.amen": "Amenities", "tab.reviews": "Reviews",
     "dock.mikri": "Mikri", "dock.host": "Pol", "dock.area": "Area", "dock.faq": "FAQ",
     "foot.note": "Details, ratings and reviews come from the listings' Airbnb pages (November 2026). Bookings are made through Airbnb."
   };
@@ -487,10 +498,91 @@
   }
   langBtn.addEventListener("click", function () {
     var next = lang === "en" ? "el" : "en";
-    if (document.startViewTransition && !reduceMotion) document.startViewTransition(function () { applyLang(next); });
-    else applyLang(next);
+    vt(function () { applyLang(next); });
   });
   var saved = null;
   try { saved = localStorage.getItem("himare-lang"); } catch (e) {}
   if (saved === "en") applyLang("en");
+
+  /* =========================================================
+     Mobile: one property at a time (switch) + in-property tabs
+     ========================================================= */
+  var mobileMQ = window.matchMedia("(max-width: 760px)");
+  var isMobile = function () { return mobileMQ.matches; };
+  var anchor = $("#stay-anchor");
+  var navH = function () { return nav.getBoundingClientRect().height; };
+
+  function transition(fn) {
+    vt(fn);
+  }
+  function scrollToStay() {
+    var top = anchor.getBoundingClientRect().top + scrollY - navH();
+    scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? "instant" : "smooth" });
+  }
+  function setProp(p, opts) {
+    opts = opts || {};
+    var apply = function () {
+      document.body.dataset.prop = p;
+      $$(".pswitch button").forEach(function (b) { b.setAttribute("aria-selected", b.dataset.prop === p ? "true" : "false"); });
+      var sec = p === "mikri" ? $("#mikri-himara") : $("#casa-bella");
+      $$("[data-reveal]", sec).forEach(function (el) { el.classList.add("in"); });
+      $$("[data-count]", sec).forEach(countUp);
+      if (isMobile()) setPill(p);
+    };
+    if (opts.animate) transition(apply); else apply();
+    if (opts.scroll) scrollToStay();
+    if (opts.hash !== false) {
+      try { history.replaceState(history.state, "", p === "mikri" ? "#mikri-himara" : location.pathname + location.search); } catch (e) {}
+    }
+  }
+  $$(".pswitch button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (document.body.dataset.prop === b.dataset.prop) { scrollToStay(); return; }
+      setProp(b.dataset.prop, { animate: true, scroll: true });
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+    });
+  });
+
+  // on mobile, links to a property (dock, hero button) switch instead of jumping
+  document.addEventListener("click", function (e) {
+    if (!isMobile()) return;
+    var a = e.target.closest('a[href="#casa-bella"], a[href="#mikri-himara"], a[href="#choose"]');
+    if (!a) return;
+    e.preventDefault();
+    var h = a.getAttribute("href");
+    if (h === "#choose") { scrollToStay(); return; }
+    var p = h === "#mikri-himara" ? "mikri" : "casa";
+    if (document.body.dataset.prop !== p) setProp(p, { animate: true, scroll: true }); else scrollToStay();
+  });
+
+  // tabs inside each property
+  $$(".property").forEach(function (sec) {
+    var bar = $(".ptabs", sec);
+    if (!bar) return;
+    $$("button", bar).forEach(function (b) {
+      b.addEventListener("click", function () {
+        var tab = b.dataset.show;
+        if (sec.dataset.activeTab === tab) return;
+        sec.dataset.activeTab = tab;
+        $$("button", bar).forEach(function (x) { x.setAttribute("aria-selected", x === b ? "true" : "false"); });
+        $$('[data-tab="' + tab + '"]', sec).forEach(function (el) {
+          el.classList.add("in");
+          $$("[data-count]", el).forEach(countUp);
+          el.classList.toggle("tab-anim", false);
+          void el.offsetWidth;
+          el.classList.toggle("tab-anim", true);
+        });
+        var barTop = bar.getBoundingClientRect().top;
+        var limit = navH() + $("#stay").getBoundingClientRect().height + 8;
+        if (barTop < limit) scrollTo({ top: scrollY + barTop - limit, behavior: reduceMotion ? "instant" : "smooth" });
+      });
+    });
+  });
+
+  // deep link: /#mikri-himara opens the second place on mobile
+  if (location.hash === "#mikri-himara") setProp("mikri", { hash: false });
+  window.addEventListener("hashchange", function () {
+    if (location.hash === "#mikri-himara") setProp("mikri", { animate: true, hash: false });
+    if (location.hash === "#casa-bella") setProp("casa", { animate: true, hash: false });
+  });
 })();
