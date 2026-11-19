@@ -1,0 +1,15 @@
+{
+  "name": "Casa Bella & Μικρή Χιμάρα",
+  "short_name": "Himarë",
+  "description": "Διαμονή στη Χιμάρα: Casa Bella και Μικρή Χιμάρα.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f0e6",
+  "theme_color": "#0f2f3a",
+  "lang": "el",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
