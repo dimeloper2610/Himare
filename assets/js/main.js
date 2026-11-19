@@ -31,6 +31,7 @@
       dir: "casa-bella", name: "Casa Bella", rating: "5,0",
       url: "https://www.airbnb.gr/rooms/1404415852625597128",
       all: files(66),
+      wide: [1],
       featured: [1, 2, 25, 7, 30, 21, 8, 38, 4, 36, 40, 51, 10, 23, 14]
     },
     mikri: {
@@ -59,7 +60,7 @@
     track.className = "car-track";
     g.featured.forEach(function (n, i) {
       var b = document.createElement("button");
-      b.className = "car-slide";
+      b.className = "car-slide" + (g.wide && g.wide.indexOf(n) !== -1 ? " wide" : "");
       b.type = "button";
       b.setAttribute("aria-label", nameOf(g) + " " + (i + 1));
       var img = new Image();
@@ -88,10 +89,17 @@
       '<button class="car-btn" type="button" data-dir="1" aria-label="Next"><svg class="ic"><use href="#i-chevron-right"/></svg></button>' +
       '<div class="car-bar"><i></i></div>' +
       '<button class="car-all" type="button"><svg class="ic"><use href="#i-grid-2x2"/></svg> <span class="car-all-label"></span></button>';
-    host.appendChild(track);
+    var frame = document.createElement("div");
+    frame.className = "car-frame";
+    frame.innerHTML =
+      '<button class="car-arrow prev" type="button" data-dir="-1" aria-label="Previous"><svg class="ic"><use href="#i-chevron-left"/></svg></button>' +
+      '<button class="car-arrow next" type="button" data-dir="1" aria-label="Next"><svg class="ic"><use href="#i-chevron-right"/></svg></button>';
+    frame.insertBefore(track, frame.firstChild);
+    host.appendChild(frame);
     host.appendChild(ui);
 
     var bar = $(".car-bar i", ui);
+    var arrows = $$(".car-arrow", frame);
     function updateBar() {
       var max = track.scrollWidth - track.clientWidth;
       var ratio = track.clientWidth / track.scrollWidth;
@@ -99,14 +107,39 @@
       bar.style.setProperty("--w", w + "%");
       var p = max > 0 ? track.scrollLeft / max : 0;
       bar.style.setProperty("--x", (p * (100 / w * 100 - 100)) + "%");
+      frame.classList.toggle("at-start", track.scrollLeft < 4);
+      frame.classList.toggle("at-end", track.scrollLeft > max - 4);
     }
     track.addEventListener("scroll", updateBar, { passive: true });
     window.addEventListener("resize", updateBar);
     setTimeout(updateBar, 300);
-    $$(".car-btn", ui).forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        track.scrollBy({ left: +btn.dataset.dir * track.clientWidth * 0.7, behavior: "smooth" });
-      });
+    // page by whole slides: move to the first slide that is cut off on that side
+    function page(dir) {
+      var slides = $$(".car-slide", track);
+      var view = track.getBoundingClientRect();
+      var target = null;
+      if (dir > 0) {
+        for (var i = 0; i < slides.length; i++) {
+          if (slides[i].getBoundingClientRect().right > view.right + 2) { target = slides[i]; break; }
+        }
+      } else {
+        for (var j = slides.length - 1; j >= 0; j--) {
+          if (slides[j].getBoundingClientRect().left < view.left - 2) { target = slides[j]; break; }
+        }
+      }
+      if (!target) return;
+      var left = dir > 0
+        ? track.scrollLeft + (target.getBoundingClientRect().left - view.left)
+        : track.scrollLeft - (view.right - target.getBoundingClientRect().right);
+      track.scrollTo({ left: left, behavior: reduceMotion ? "instant" : "smooth" });
+    }
+    $$(".car-btn, .car-arrow", host).forEach(function (btn) {
+      btn.addEventListener("click", function () { page(+btn.dataset.dir); });
+    });
+    track.tabIndex = 0;
+    track.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") { e.preventDefault(); page(1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); page(-1); }
     });
     $(".car-all", ui).addEventListener("click", function () { openSheet(key); });
     host._labels = function () {
