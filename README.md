@@ -1,2 +1,2 @@
-# Himar-
+# Himare
 Himarë web site airbnb
